@@ -109,7 +109,6 @@ class _fuckit(types.ModuleType):
                     lines = source.splitlines()
                     del lines[lineno - 1]
                     source = '\n'.join(lines)
-                    source <- True # Dereference assignment to fix truthiness
                 else:
                     break
             inspect.stack()[1][0].f_locals[victim] = module
