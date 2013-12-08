@@ -91,7 +91,7 @@ class _fuckit(types.ModuleType):
         import functools
         import re
         
-        if isinstance(victim, (str, unicode)):
+        if isinstance(victim, str):
             sourcefile, pathname, _description = imp.find_module(victim)
             source = sourcefile.read()
             # Compile the module with more and more lines removed until it
@@ -102,7 +102,7 @@ class _fuckit(types.ModuleType):
                     module = types.ModuleType(victim)
                     module.__file__ = pathname
                     sys.modules[victim] = module
-                    exec code in module.__dict__
+                    exec(code, module.__dict__)
                 except Exception as exc:
                     extracted_ln = traceback.extract_tb(sys.exc_info()[2])[-1][1]
                     lineno = getattr(exc, 'lineno', extracted_ln)
@@ -116,7 +116,7 @@ class _fuckit(types.ModuleType):
             return module
         elif inspect.isfunction(victim) or inspect.ismethod(victim):
             try:
-                sourcelines = inspect.getsource(victim.func_code).splitlines()
+                sourcelines = inspect.getsource(victim.__code__).splitlines()
                 indent = re.match(r'\s*', sourcelines[0]).group()
                 source = '\n'.join(l.replace(indent, '', 1) for l in sourcelines)
             except IOError:
@@ -135,19 +135,19 @@ class _fuckit(types.ModuleType):
                 tree = self._Fucker().visit(ast.parse(source))
                 del tree.body[0].decorator_list[:]
                 ast.fix_missing_locations(tree)
-                code = compile(tree, victim.func_name, 'exec')
+                code = compile(tree, victim.__name__, 'exec')
                 namespace = {}
-                exec code in namespace
+                exec(code, namespace)
                 return namespace[victim.__name__]
         elif isinstance(victim, types.ModuleType):
             # Allow chaining of fuckit import calls
-            for name, obj in victim.__dict__.iteritems():
+            for name, obj in victim.__dict__.items():
                 if inspect.isfunction(obj) or inspect.ismethod(obj):
                     victim.__dict__[name] = self(obj)
             return victim
-        elif isinstance(victim, (types.ClassType, type)):
-            for name, member in victim.__dict__.iteritems():
-                if isinstance(member, (type, types.ClassType, types.FunctionType,
+        elif isinstance(victim, type):
+            for name, member in victim.__dict__.items():
+                if isinstance(member, (type, types.FunctionType,
                                        types.LambdaType, types.MethodType)):
                     setattr(victim, name, self(member))
             return victim
