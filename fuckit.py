@@ -1,7 +1,7 @@
 __doc__ = """Steamroll errors.
 
-Getting import errors? Use the fuckit function as a replacement for import if an
-import fails.
+Getting import errors? Use the fuckit function as a replacement for import if
+an import fails.
 
     >>> import fuckit
     >>> import broke
@@ -43,7 +43,7 @@ Getting errors from your own function? Use fuckit as a decorator.
     ...     return 'This works'
     >>> f()
     'This works'
-    
+
 Getting errors in a block of code and don't want to write your own try/except
 block? Use fuckit as a context manager.
 
@@ -53,34 +53,37 @@ block? Use fuckit as a context manager.
     This works
 """
 
+
 import ast
 import sys
 import types
+
 
 class _fuckit(types.ModuleType):
     # We overwrite the sys.moduoles entry for this function later, which will
     # cause all the values in globals() to be changed to None to allow garbage
     # collection. That forces us to do all of our imports into locals().
     class _Fucker(ast.NodeTransformer):
-        """Surround each statement with a try/except block to silence errors."""
+        """Surround each statement with a try/except block to silence
+        errors."""
         def generic_visit(self, node):
-            import ast
-            if isinstance(node, ast.stmt) and not isinstance(node, ast.FunctionDef):
-                return ast.copy_location(ast.Try(
-                    body=[node],
-                    handlers=[ast.ExceptHandler(type=None,
-                                                name=None,
-                                                body=[ast.Pass()])],
-                    finalbody=[], orelse=[]),
-                    node)
-            return node
-    
+            import ast  # necessary hack
+            if not isinstance(node, ast.stmt):
+                return node
+            if isinstance(node, ast.FunctionDef):
+                return node
+            handler = ast.ExceptHandler(
+                type=None, name=None, body=[ast.Pass()])
+            try_node = ast.Try(
+                body=[node], handlers=[handler], finalbody=[], orelse=[])
+            return ast.copy_location(try_node, node)
+
     def __call__(self, victim):
         """Steamroll errors.
-    
+
         The argument can be the string name of a module to import, an existing
         module, or a function.
-        """ 
+        """
         import inspect
         import imp
         import ast
@@ -89,7 +92,7 @@ class _fuckit(types.ModuleType):
         import traceback
         import functools
         import re
-        
+
         if isinstance(victim, str):
             sourcefile, pathname, _description = imp.find_module(victim)
             source = sourcefile.read()
@@ -103,7 +106,8 @@ class _fuckit(types.ModuleType):
                     sys.modules[victim] = module
                     exec(code, module.__dict__)
                 except Exception as exc:
-                    extracted_ln = traceback.extract_tb(sys.exc_info()[2])[-1][1]
+                    extracted_ln = traceback.extract_tb(
+                        sys.exc_info()[2])[-1][1]
                     lineno = getattr(exc, 'lineno', extracted_ln)
                     lines = source.splitlines()
                     del lines[lineno - 1]
@@ -116,7 +120,8 @@ class _fuckit(types.ModuleType):
             try:
                 sourcelines = inspect.getsource(victim.__code__).splitlines()
                 indent = re.match(r'\s*', sourcelines[0]).group()
-                source = '\n'.join(l.replace(indent, '', 1) for l in sourcelines)
+                source = '\n'.join(
+                    l.replace(indent, '', 1) for l in sourcelines)
             except IOError:
                 # Worst-case scenario we can only catch errors at a granularity
                 # of the whole function.
@@ -149,18 +154,16 @@ class _fuckit(types.ModuleType):
                                        types.LambdaType, types.MethodType)):
                     setattr(victim, name, self(member))
             return victim
-    
+
         return victim
-    
+
     def __enter__(self):
         return None
-    
+
     def __exit__(self, exc_type, exc_value, traceback):
         # Returning True prevents the error from propagating. Don't silence
         # KeyboardInterrupt or SystemExit. We aren't monsters.
         return exc_type is None or issubclass(exc_type, Exception)
-    
-    
-    
+
+
 sys.modules[__name__] = _fuckit('fuckit', __doc__)
-    
