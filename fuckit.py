@@ -65,8 +65,6 @@ class _fuckit(types.ModuleType):
         """Surround each statement with a try/except block to silence errors."""
         def generic_visit(self, node):
             import ast
-            ast.NodeTransformer.generic_visit(self, node)
-    
             if isinstance(node, ast.stmt) and not isinstance(node, ast.FunctionDef):
                 return ast.copy_location(ast.Try(
                     body=[node],
