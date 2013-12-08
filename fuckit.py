@@ -68,12 +68,13 @@ class _fuckit(types.ModuleType):
             ast.NodeTransformer.generic_visit(self, node)
     
             if isinstance(node, ast.stmt) and not isinstance(node, ast.FunctionDef):
-                return ast.copy_location(ast.TryExcept(
+                return ast.copy_location(ast.Try(
                     body=[node],
                     handlers=[ast.ExceptHandler(type=None,
                                                 name=None,
                                                 body=[ast.Pass()])],
-                    orelse=[]), node)
+                    finalbody=[], orelse=[]),
+                    node)
             return node
     
     def __call__(self, victim):
